@@ -1,7 +1,7 @@
 Set up WireGuard
 ================
 
-[![Test](https://github.com/egor-tensin/setup-wireguard/actions/workflows/test.yml/badge.svg)](https://github.com/egor-tensin/setup-wireguard/actions/workflows/test.yml)
+[![Test](https://github.com/mgebundy/setup-wireguard/actions/workflows/test.yml/badge.svg)](https://github.com/mgebundy/setup-wireguard/actions/workflows/test.yml)
 
 This GitHub action sets up a WireGuard connection in your workflow run.
 
@@ -11,11 +11,12 @@ This GitHub action sets up a WireGuard connection in your workflow run.
 Use it your workflow like this:
 
     - name: Set up WireGuard
-      uses: egor-tensin/setup-wireguard@v1
+      uses: mgebundy/setup-wireguard@v1
       with:
         endpoint: 46.46.46.46:51820
         endpoint_public_key: 9IHlvJqgkVWMq57a0A56XI5IjhnL5gaRhI1Pszk7S24=
         ips: 192.168.143.254/24,fd8c:bc10:5021::192.168.143.254/48
+        dns: '192.168.143.1'
         allowed_ips: 192.168.143.0/24,fd8c:bc10:5021::/48
         private_key: GLEiXhRwFuhw8aPy+HQfSMwwoLU0Sw8jE8MOxZ8GV3w=
         preshared_key: PWAfvVWCjiNV0Uh2DhmXhdRaT326qosSOcaDB3j9dwI=
@@ -25,7 +26,7 @@ secrets.
 It could then become something like:
 
     - name: Set up WireGuard
-      uses: egor-tensin/setup-wireguard@v1
+      uses: mgebundy/setup-wireguard@v1
       with:
         endpoint: '${{ secrets.ENDPOINT }}'
         endpoint_public_key: '${{ secrets.ENDPOINT_PUBLIC }}'
