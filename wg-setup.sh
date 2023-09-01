@@ -77,7 +77,7 @@ via_wg_tools() {
     # Add nameservers
     if [[ -n ${dns} ]]; then
         resolv_file="/etc/resolv.conf"
-        sudo tee ${resolv_file} <<< $(sed '/^nameserver/d' ${resolv_file})
+        sudo tee ${resolv_file} <<< "$(sed '/^nameserver/d' ${resolv_file})"
         for d in ${dns//,/ }; do echo "nameserver ${d}" | sudo tee -a ${resolv_file}; done
     fi
 
