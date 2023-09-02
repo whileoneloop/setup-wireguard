@@ -22,7 +22,7 @@ shift
 
 install_wg_tools() {
     sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends wireguard-tools
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends wireguard-tools dkms
 }
 
 configure_ns() {
