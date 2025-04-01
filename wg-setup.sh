@@ -21,6 +21,9 @@ readonly port
 install_wg_tools() {
   sudo apt-get update || sudo yum update -y
   if command -v apt-get >/dev/null 2>&1; then
+    # attempt workaround for Error: GDBus.Error:org.freedesktop.systemd1.TransactionIsDestructive: Transaction for packagekit.service/start is destructive (system-systemd\x2dfsck.slice has 'stop' job queued, but 'start' is included in transaction).
+    sudo systemctl stop packagekit.service
+    # end workaround
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends wireguard-tools
   elif command -v yum >/dev/null 2>&1; then
     sudo amazon-linux-extras install -y epel
