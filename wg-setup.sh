@@ -25,6 +25,7 @@ install_wg_tools() {
     sudo systemctl stop packagekit.service
     # end workaround
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends wireguard-tools
+    echo "wireguard-tools installed."
   elif command -v yum >/dev/null 2>&1; then
     sudo amazon-linux-extras install -y epel
     sudo yum install -y wireguard-tools
@@ -55,6 +56,7 @@ via_wg_tools() {
         fi
     )
 
+    echo "run: ip link add dev '$ifname' type wireguard"
     sudo ip link add dev "$ifname" type wireguard
 
     local delim=,
@@ -63,6 +65,7 @@ via_wg_tools() {
         sudo ip addr add "$ip" dev "$ifname"
     done < <( printf -- "%s$delim\\0" "$ips" )
 
+    echo "call wg set for port and private key"
     sudo wg set "$ifname" \
         listen-port "$port" \
         private-key "$private_key_path"
@@ -78,18 +81,21 @@ via_wg_tools() {
     fi
 
     # Add nameservers
+    echo "configure name servers"
     if [[ -n ${dns} ]]; then
         resolv_file="/etc/resolv.conf"
         sudo tee ${resolv_file} <<< "$(sed '/^nameserver/d' ${resolv_file})"
         for d in ${dns//,/ }; do echo "nameserver ${d}" | sudo tee -a ${resolv_file}; done
     fi
 
+    echo "call wg set for peer"
     sudo wg set "$ifname" \
         peer "$endpoint_public_key" \
         endpoint "$endpoint" \
         allowed-ips "$allowed_ips" \
         "${additional_wg_args[@]}"
 
+    echo "ip link set '$ifname' up"
     sudo ip link set "$ifname" up
 
     # Add routes for allowed_ips
@@ -97,3 +103,4 @@ via_wg_tools() {
 }
 
 via_wg_tools
+echo "after via_wg_tools"
