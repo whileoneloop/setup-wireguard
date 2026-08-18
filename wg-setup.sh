@@ -6,9 +6,9 @@ readonly endpoint_public_key="$ARG_ENDPOINT_PUBLIC_KEY"
 readonly ips="$ARG_ASSIGNED_IPS"
 readonly allowed_ips="$ARG_ALLOWED_IPS"
 readonly private_key="$ARG_PRIVATE_KEY"
-readonly preshared_key="$ARG_PRESHARED_KEY"
-readonly keepalive="$ARG_KEEPALIVE"
-readonly dns="$ARG_DNS"
+readonly preshared_key="${ARG_PRESHARED_KEY:-}"
+readonly keepalive="${ARG_KEEPALIVE:-}"
+readonly dns="${ARG_DNS:-}"
 
 readonly minport=51000
 readonly maxport=51999
@@ -18,17 +18,58 @@ readonly ifname
 port="$( shuf "--input-range=$minport-$maxport" --head-count=1 )"
 readonly port
 
+APT_OPTS=(
+  -o Acquire::ForceIPv4=true
+  -o Acquire::http::Timeout=15
+  -o Acquire::https::Timeout=15
+  -o Acquire::Retries=2
+)
+readonly APT_UPDATE_TIMEOUT_SECS=120
+readonly APT_UPDATE_ATTEMPTS=2
+
+apt_update_with_timeout() {
+  echo "Refreshing apt indexes (timeout ${APT_UPDATE_TIMEOUT_SECS}s)..."
+  timeout "$APT_UPDATE_TIMEOUT_SECS" sudo apt-get "${APT_OPTS[@]}" update
+}
+
 install_wg_tools() {
-  sudo apt-get update || sudo yum update -y
+  if command -v wg >/dev/null 2>&1; then
+    echo "wireguard-tools already installed; skipping package install."
+    return 0
+  fi
+
   if command -v apt-get >/dev/null 2>&1; then
-    # attempt workaround for Error: GDBus.Error:org.freedesktop.systemd1.TransactionIsDestructive: Transaction for packagekit.service/start is destructive (system-systemd\x2dfsck.slice has 'stop' job queued, but 'start' is included in transaction).
-    sudo systemctl stop packagekit.service
-    # end workaround
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends wireguard-tools
-    echo "wireguard-tools installed."
+    # Workaround: GDBus.Error:org.freedesktop.systemd1.TransactionIsDestructive
+    # when packagekit.service is started during apt on GitHub-hosted runners.
+    sudo systemctl stop packagekit.service 2>/dev/null || true
+
+    # GitHub runner images already ship reasonably fresh apt lists. A full
+    # `apt-get update` often hangs for minutes on slow/IPv6 Ubuntu mirrors
+    # (azure.archive.ubuntu.com), so try installing from the baked lists first.
+    echo "Installing wireguard-tools from the runner image's apt lists (no apt-get update)..."
+    if sudo DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -yq --no-install-recommends wireguard-tools; then
+      echo "wireguard-tools installed."
+      return 0
+    fi
+
+    echo "Install without apt-get update failed; refreshing indexes and retrying."
+    local attempt
+    for attempt in $(seq 1 "$APT_UPDATE_ATTEMPTS"); do
+      echo "apt-get update attempt ${attempt}/${APT_UPDATE_ATTEMPTS}"
+      if apt_update_with_timeout; then
+        sudo DEBIAN_FRONTEND=noninteractive apt-get "${APT_OPTS[@]}" install -yq --no-install-recommends wireguard-tools
+        echo "wireguard-tools installed."
+        return 0
+      fi
+      echo "apt-get update timed out or failed (attempt ${attempt}/${APT_UPDATE_ATTEMPTS})."
+    done
+
+    echo "Failed to install wireguard-tools after ${APT_UPDATE_ATTEMPTS} timed apt-get update attempts."
+    exit 1
   elif command -v yum >/dev/null 2>&1; then
     sudo amazon-linux-extras install -y epel
     sudo yum install -y wireguard-tools
+    echo "wireguard-tools installed."
   else
     echo "Unsupported package manager"
     exit 1
