@@ -76,17 +76,19 @@ install_wg_tools() {
   fi
 }
 
-readonly private_key_path=/tmp/private.key
-readonly preshared_key_path=/tmp/preshared.key
+readonly key_dir=/etc/wireguard
+readonly private_key_path=$key_dir/setup-wireguard-private.key
+readonly preshared_key_path=$key_dir/setup-wireguard-preshared.key
 
 wg_tools_cleanup() {
     sudo rm -f -- "$private_key_path"
     sudo rm -f -- "$preshared_key_path"
 }
 
-# Root owns the key files: on Ubuntu 26.04 AppArmor denies wg the capabilities to read another
-# user's files, even under sudo.
+# On Ubuntu 26.04 AppArmor confines wg: it may not read another user's files even under sudo, and
+# reads keys from /etc/wireguard. So root owns the key files, there.
 write_root_key_file() {
+    sudo install -d -m 700 -o root -g root "$key_dir"
     sudo install -m 600 -o root -g root /dev/null "$2"
     printf '%s\n' "$1" | sudo tee "$2" > /dev/null
 }
