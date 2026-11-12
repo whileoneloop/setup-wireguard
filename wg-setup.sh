@@ -80,8 +80,15 @@ readonly private_key_path=/tmp/private.key
 readonly preshared_key_path=/tmp/preshared.key
 
 wg_tools_cleanup() {
-    rm -f -- "$private_key_path"
-    rm -f -- "$preshared_key_path"
+    sudo rm -f -- "$private_key_path"
+    sudo rm -f -- "$preshared_key_path"
+}
+
+# Root owns the key files: on Ubuntu 26.04 AppArmor denies wg the capabilities to read another
+# user's files, even under sudo.
+write_root_key_file() {
+    sudo install -m 600 -o root -g root /dev/null "$2"
+    printf '%s\n' "$1" | sudo tee "$2" > /dev/null
 }
 
 via_wg_tools() {
@@ -90,10 +97,9 @@ via_wg_tools() {
 
     (
         set -o errexit -o nounset -o pipefail
-        umask 0077
-        echo "$private_key" > "$private_key_path"
+        write_root_key_file "$private_key" "$private_key_path"
         if [ -n "$preshared_key" ]; then
-            echo "$preshared_key" > "$preshared_key_path"
+            write_root_key_file "$preshared_key" "$preshared_key_path"
         fi
     )
 
