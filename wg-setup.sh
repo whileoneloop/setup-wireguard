@@ -76,26 +76,29 @@ install_wg_tools() {
   fi
 }
 
-readonly private_key_path=/tmp/private.key
-readonly preshared_key_path=/tmp/preshared.key
+# Under /etc/wireguard: from Ubuntu 26.04, AppArmor's wg profile only lets wg read key files there.
+readonly key_dir=/etc/wireguard
+readonly private_key_path="$key_dir/$ifname.key"
+readonly preshared_key_path="$key_dir/$ifname.psk"
 
 wg_tools_cleanup() {
-    rm -f -- "$private_key_path"
-    rm -f -- "$preshared_key_path"
+    sudo rm -f -- "$private_key_path" "$preshared_key_path"
+}
+
+write_key() {
+    sudo install -m 600 /dev/null "$2"
+    printf '%s\n' "$1" | sudo tee "$2" > /dev/null
 }
 
 via_wg_tools() {
     install_wg_tools
     trap wg_tools_cleanup EXIT
 
-    (
-        set -o errexit -o nounset -o pipefail
-        umask 0077
-        echo "$private_key" > "$private_key_path"
-        if [ -n "$preshared_key" ]; then
-            echo "$preshared_key" > "$preshared_key_path"
-        fi
-    )
+    sudo install -d -m 700 "$key_dir"
+    write_key "$private_key" "$private_key_path"
+    if [ -n "$preshared_key" ]; then
+        write_key "$preshared_key" "$preshared_key_path"
+    fi
 
     echo "run: ip link add dev '$ifname' type wireguard"
     sudo ip link add dev "$ifname" type wireguard
